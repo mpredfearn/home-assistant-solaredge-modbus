@@ -46,7 +46,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
     entities = []
 
-    for idx in range(1, 1 + hub.number_of_inverters):
+    for idx in hub.inverter_ids:
         name_prefix = "" if hub.number_of_inverters == 1 else f"I{idx} "
         key_prefix = "" if hub.number_of_inverters == 1 else f"i{idx}_"
         for sensor_info in SENSOR_TYPES.values():

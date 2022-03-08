@@ -21,13 +21,17 @@ from .const import (
     DOMAIN,
     DEFAULT_NAME,
     DEFAULT_SCAN_INTERVAL,
-    CONF_NUMBER_INVERTERS,
+    CONF_INVERTER1_ID,
+    CONF_INVERTER2_ID,
+    CONF_INVERTER3_ID,
     CONF_READ_METER1,
     CONF_READ_METER2,
     CONF_READ_METER3,
     CONF_READ_BATTERY1,
     CONF_READ_BATTERY2,
-    DEFAULT_NUMBER_INVERTERS,
+    DEFAULT_INVERTER1_ID,
+    DEFAULT_INVERTER2_ID,
+    DEFAULT_INVERTER3_ID,
     DEFAULT_READ_METER1,
     DEFAULT_READ_METER2,
     DEFAULT_READ_METER3,
@@ -46,14 +50,14 @@ SOLAREDGE_MODBUS_SCHEMA = vol.Schema(
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
         vol.Required(CONF_HOST): cv.string,
         vol.Required(CONF_PORT): cv.string,
+        vol.Optional(CONF_INVERTER1_ID, default=DEFAULT_INVERTER1_ID): cv.positive_int,
+        vol.Optional(CONF_INVERTER2_ID, default=DEFAULT_INVERTER2_ID): cv.positive_int,
+        vol.Optional(CONF_INVERTER3_ID, default=DEFAULT_INVERTER3_ID): cv.positive_int,
         vol.Optional(CONF_READ_METER1, default=DEFAULT_READ_METER1): cv.boolean,
         vol.Optional(CONF_READ_METER2, default=DEFAULT_READ_METER2): cv.boolean,
         vol.Optional(CONF_READ_METER3, default=DEFAULT_READ_METER3): cv.boolean,
         vol.Optional(CONF_READ_BATTERY1, default=DEFAULT_READ_BATTERY1): cv.boolean,
         vol.Optional(CONF_READ_BATTERY2, default=DEFAULT_READ_BATTERY2): cv.boolean,
-        vol.Optional(
-            CONF_NUMBER_INVERTERS, default=DEFAULT_NUMBER_INVERTERS
-        ): cv.positive_int,
         vol.Optional(
             CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
         ): cv.positive_int,
@@ -79,7 +83,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     name = entry.data[CONF_NAME]
     port = entry.data[CONF_PORT]
     scan_interval = entry.data[CONF_SCAN_INTERVAL]
-    number_of_inverters = entry.data.get(CONF_NUMBER_INVERTERS, 1)
+    inverter1_id = entry.data.get(CONF_INVERTER1_ID, 1)
+    inverter2_id = entry.data.get(CONF_INVERTER2_ID, 0)
+    inverter3_id = entry.data.get(CONF_INVERTER3_ID, 0)
     read_meter1 = entry.data.get(CONF_READ_METER1, False)
     read_meter2 = entry.data.get(CONF_READ_METER2, False)
     read_meter3 = entry.data.get(CONF_READ_METER3, False)
@@ -89,7 +95,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     _LOGGER.debug("Setup %s.%s", DOMAIN, name)
 
     hub = SolaredgeModbusHub(
-        hass, name, host, port, scan_interval, number_of_inverters,
+        hass, name, host, port, scan_interval, inverter1_id, inverter2_id, inverter3_id,
         read_meter1, read_meter2, read_meter3, read_battery1, read_battery2
     )
     """Register the hub."""
@@ -141,7 +147,9 @@ class SolaredgeModbusHub:
         host,
         port,
         scan_interval,
-        number_of_inverters=1,
+        inverter1_id=1,
+        inverter2_id=0,
+        inverter3_id=0,
         read_meter1=False,
         read_meter2=False,
         read_meter3=False,
@@ -153,7 +161,8 @@ class SolaredgeModbusHub:
         self._client = ModbusTcpClient(host=host, port=port)
         self._lock = threading.Lock()
         self._name = name
-        self.number_of_inverters = number_of_inverters
+        self.inverter_ids = [ x for x in [inverter1_id, inverter2_id, inverter3_id] if x != 0]
+        self.number_of_inverters = len(self.inverter_ids)
         self.read_meter1 = read_meter1
         self.read_meter2 = read_meter2
         self.read_meter3 = read_meter3
@@ -558,8 +567,9 @@ class SolaredgeModbusHub:
             return False
 
     def read_modbus_data_inverters(self):
-        for idx in range(1, 1 + self.number_of_inverters):
-            prefix = "" if self.number_of_inverters == 1 else f"i{idx}_"
+
+        for idx in self.inverter_ids:
+            prefix = "" if self.number_of_inverters==1  else f"i{idx}_"
             if not self.read_modbus_data_inverter(prefix, idx):
                 _LOGGER.warning(f"Failed to read inverter {idx} data")
                 return False
